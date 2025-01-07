@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; // Import the CSS for toast notifications
 
 export default function Lintoxic() {
   const [type, setType] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
   const [preview, setPreview] = useState<string | ArrayBuffer | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const BASE_URL = "http://localhost:8000";
 
   const handleType = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setType(e.target.value);
@@ -48,8 +54,46 @@ export default function Lintoxic() {
     }
   }, [type]);
 
+  const handlefile = async () => {
+    if (type === "text" && !textInput && !file) {
+      return toast.error("Please enter some text first or upload a file.");
+    }
+    if (type !== "text" && !file)
+      return toast.error("Please upload a file first.");
+
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      if (file) {
+        formData.append("file", file);
+      }
+      var response = null;
+      if (!textInput && file) {
+        response = await axios.post(`${BASE_URL}/api/v1/upload/`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        response = await axios.post(
+          `${BASE_URL}/api/v1/upload/content`,
+          { content: textInput },
+          {
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      toast.success(response.data.message || "Upload successful!");
+    } catch (error) {
+      console.error("Upload Failed", error);
+      toast.error("Oops! Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="w-full flex-col items-center font-mono justify-center text-left">
+      <ToastContainer />
       <select
         className="w-1/2 p-2 m-2 border-2 border-gray-300 rounded-lg"
         onChange={handleType}
@@ -127,8 +171,11 @@ export default function Lintoxic() {
         </section>
       )}
       {type && (
-        <button className="w-1/2 bg-black text-white p-4 mt-5 ml-2 rounded-md hover:bg-green-400">
-          Analyze
+        <button
+          className="w-1/2 bg-black text-white p-4 mt-5 ml-2 rounded-md hover:bg-green-400"
+          onClick={handlefile}
+        >
+          {loading ? "Analysing..." : "Analyse"}
         </button>
       )}
     </main>
